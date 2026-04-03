@@ -55,3 +55,20 @@ if st.session_state.get('editing'):
     if st.button("I've finished entering picks"):
         st.session_state.editing = False
         st.rerun()
+
+# 3. Instruction for Saving
+
+# This function tells the app to stop showing the 'Editor' view
+def deactivate_editing():
+    st.session_state.editing = False
+
+if st.session_state.get('editing'):
+    st.warning("⚠️ Manual Step Required")
+    st.write("Click the button below to open your sheet and type your picks directly into the next empty row.")
+    
+    st.link_button("Open Google Sheet", sheet_url)
+    
+    st.info("Once you have saved your picks in the spreadsheet, click the button below.")
+    
+    # We use 'on_click' to make the change permanent
+    st.button("I've finished entering picks", on_click=deactivate_editing)
