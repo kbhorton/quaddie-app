@@ -1,28 +1,29 @@
 import streamlit as st
 import datetime
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(page_title="Quaddie Tracker", page_icon="🏇")
 
-# 1. Connect to Google Sheets
-conn = st.connection("gsheets", type=GSheetsConnection)
+st.title("🏇 Shared Quaddie Tracker")
+
+# 1. Get your Sheet ID from the URL
+# If your URL is https://docs.google.com/spreadsheets/d/1ABC123/edit, your ID is 1ABC123
+sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+sheet_id = sheet_url.split("/d/")[1].split("/")[0]
+csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
 
 def get_data():
-    # Adding a random parameter helps force a fresh read from Google
-    return conn.read(ttl=0) 
-
-st.title("🏇 Shared Quaddie Tracker")
+    return pd.read_csv(csv_url)
 
 today_date = datetime.date.today().isoformat()
 
-# Try to get data, if it fails (empty sheet), create a blank starting point
+# Load Data
 try:
     df = get_data()
 except:
-    df = pd.DataFrame(columns=["Date", "Track", "Leg1", "Leg2", "Leg3", "Leg4"])
+    st.error("Could not read the Google Sheet. Check your URL in Secrets.")
+    st.stop()
 
-# Filter for today's entries
 today_entry = df[df['Date'] == today_date]
 
 # 2. Display Logic
@@ -42,31 +43,15 @@ else:
         st.info("No picks entered for today.")
     st.session_state.editing = True
 
-# 3. The Input Form
+# 3. Instruction for Saving
 if st.session_state.get('editing'):
-    with st.form("quaddie_form"):
-        track_val = "" if today_entry.empty else today_entry.iloc[-1]['Track']
-        track = st.text_input("Track Name", value=track_val)
-        
-        c1, c2, c3, c4 = st.columns(4)
-        l1 = c1.text_input("Leg 1", key="in1")
-        l2 = c2.text_input("Leg 2", key="in2")
-        l3 = c3.text_input("Leg 3", key="in3")
-        l4 = c4.text_input("Leg 4", key="in4")
-        
-        if st.form_submit_button("Save to Cloud"):
-            # Create the new row
-            new_row = pd.DataFrame([{
-                "Date": today_date, "Track": track,
-                "Leg1": l1, "Leg2": l2, "Leg3": l3, "Leg4": l4
-            }])
-            
-            # Add new row to existing data
-            updated_df = pd.concat([df, new_row], ignore_index=True)
-            
-            # Overwrite the sheet with the updated list
-            conn.update(data=updated_df)
-            
-            st.success("Saved! Refreshing...")
-            st.session_state.editing = False
-            st.rerun()
+    st.warning("⚠️ Manual Step Required")
+    st.write("Because Google is strict about security, the easiest way to save your picks is to click the button below to open your sheet and type them in directly. Your friends will see them here instantly once you refresh.")
+    
+    st.link_button("Open Google Sheet to Enter Picks", sheet_url)
+    
+    st.info("Type the Date, Track, and Horse Numbers into the next available row.")
+    
+    if st.button("I've finished entering picks"):
+        st.session_state.editing = False
+        st.rerun()
